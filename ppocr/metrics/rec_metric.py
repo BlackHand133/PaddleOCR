@@ -1,4 +1,5 @@
-# copyright (c) 2020 PaddlePaddle Authors. All Rights Reserve.
+# copyright (c) 2020 PaddlePaddle Authors.
+# All Rights Reserve.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +20,10 @@ import numpy as np
 import string
 from .bleu import compute_bleu_score, compute_edit_distance
 
+
+# =====================================================
+# =============== RecMetric with CER ==================
+# =====================================================
 
 class RecMetric(object):
     def __init__(
@@ -41,42 +46,63 @@ class RecMetric(object):
         correct_num = 0
         all_num = 0
         norm_edit_dis = 0.0
+
         for (pred, pred_conf), (target, _) in zip(preds, labels):
+
             if self.ignore_space:
                 pred = pred.replace(" ", "")
                 target = target.replace(" ", "")
+
             if self.is_filter:
                 pred = self._normalize_text(pred)
                 target = self._normalize_text(target)
+
+            # ==============================
+            # Compute CER for each sample
+            # ==============================
+            cer = Levenshtein.distance(pred, target) / max(1, len(target))
+            self.cer_list.append(cer)
+
+            # norm_edit_dis (already included in PaddleOCR)
             norm_edit_dis += Levenshtein.normalized_distance(pred, target)
+
             if pred == target:
                 correct_num += 1
             all_num += 1
+
         self.correct_num += correct_num
         self.all_num += all_num
         self.norm_edit_dis += norm_edit_dis
+
         return {
             "acc": correct_num / (all_num + self.eps),
             "norm_edit_dis": 1 - norm_edit_dis / (all_num + self.eps),
+            "cer": sum(self.cer_list[-all_num:]) / (all_num + self.eps),  # batch CER
         }
 
     def get_metric(self):
-        """
-        return metrics {
-                 'acc': 0,
-                 'norm_edit_dis': 0,
-            }
-        """
-        acc = 1.0 * self.correct_num / (self.all_num + self.eps)
+        acc = self.correct_num / (self.all_num + self.eps)
         norm_edit_dis = 1 - self.norm_edit_dis / (self.all_num + self.eps)
+        cer = sum(self.cer_list) / (self.all_num + self.eps)
+
         self.reset()
-        return {"acc": acc, "norm_edit_dis": norm_edit_dis}
+
+        return {
+            "acc": acc,
+            "norm_edit_dis": norm_edit_dis,
+            "cer": cer,
+        }
 
     def reset(self):
         self.correct_num = 0
         self.all_num = 0
         self.norm_edit_dis = 0
+        self.cer_list = []
 
+
+# =====================================================
+# =============== CNTMetric (unchanged) ===============
+# =====================================================
 
 class CNTMetric(object):
     def __init__(self, main_indicator="acc", **kwargs):
@@ -99,11 +125,6 @@ class CNTMetric(object):
         }
 
     def get_metric(self):
-        """
-        return metrics {
-                 'acc': 0,
-            }
-        """
         acc = 1.0 * self.correct_num / (self.all_num + self.eps)
         self.reset()
         return {"acc": acc}
@@ -112,6 +133,10 @@ class CNTMetric(object):
         self.correct_num = 0
         self.all_num = 0
 
+
+# =====================================================
+# =============== CANMetric (unchanged) ===============
+# =====================================================
 
 class CANMetric(object):
     def __init__(self, main_indicator="exp_rate", **kwargs):
@@ -149,8 +174,8 @@ class CANMetric(object):
         for i in range(batch_size):
             if word_scores[i] == 1:
                 line_right += 1
-        self.word_rate = np.mean(word_scores)  # float
-        self.exp_rate = line_right / batch_size  # float
+        self.word_rate = np.mean(word_scores)
+        self.exp_rate = line_right / batch_size
         exp_length, word_length = word_label.shape[:2]
         self.word_right.append(self.word_rate * word_length)
         self.exp_right.append(self.exp_rate * exp_length)
@@ -158,12 +183,6 @@ class CANMetric(object):
         self.exp_total_num = self.exp_total_num + exp_length
 
     def get_metric(self):
-        """
-        return {
-            'word_rate': 0,
-            "exp_rate": 0,
-        }
-        """
         cur_word_rate = sum(self.word_right) / self.word_total_length
         cur_exp_rate = sum(self.exp_right) / self.exp_total_num
         self.reset()
@@ -179,6 +198,10 @@ class CANMetric(object):
         self.word_total_length = 0
         self.exp_total_num = 0
 
+
+# =====================================================
+# ============= LaTeXOCRMetric (unchanged) ============
+# =====================================================
 
 class LaTeXOCRMetric(object):
     def __init__(self, main_indicator="exp_rate", cal_bleu_score=False, **kwargs):
@@ -225,8 +248,8 @@ class LaTeXOCRMetric(object):
 
         batch_size = len(lev_dist)
 
-        self.edit_dist = sum(lev_dist)  # float
-        self.exp_rate = line_right  # float
+        self.edit_dist = sum(lev_dist)
+        self.exp_rate = line_right
         if self.cal_bleu_score:
             self.bleu_score = sum(bleu_list)
             self.bleu_right.append(self.bleu_score)
@@ -242,13 +265,6 @@ class LaTeXOCRMetric(object):
         self.exp_total_num = self.exp_total_num + exp_length
 
     def get_metric(self):
-        """
-        return {
-            'edit distance': 0,
-            "bleu_score": 0,
-            "exp_rate": 0,
-        }
-        """
         cur_edit_distance = sum(self.edit_right) / self.exp_total_num
         cur_exp_rate = sum(self.exp_right) / self.exp_total_num
         if self.cal_bleu_score:
@@ -267,7 +283,6 @@ class LaTeXOCRMetric(object):
                 "exp_rate<=3 ": cur_exp_3,
             }
         else:
-
             return {
                 "edit distance": cur_edit_distance,
                 "exp_rate": cur_exp_rate,
