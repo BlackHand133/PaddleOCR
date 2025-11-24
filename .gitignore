@@ -23,6 +23,17 @@ log/
 .clang-format
 .clang_format.hook
 
+# Model files
+*.pdparams
+*.pdopt
+*.states
+*.pdiparams
+*.pdiparams.info
+*.pdmodel
+
+# Temporary files
+nul
+
 build/
 dist/
 paddleocr.egg-info/
