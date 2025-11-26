@@ -65,6 +65,15 @@ In addition to providing an outstanding model library, PaddleOCR 3.0 also offers
 
 ## 📣 Recent updates
 
+### 🔥2025.11.26: Thai WER Metric Added
+
+- **Thai Word Error Rate (WER) Metric:**
+    - Added `ThaiWERMetric` for evaluating Thai OCR models using word-level accuracy.
+    - Supports three Thai tokenizers: **newmm** (PyThaiNLP default), **attacut**, and **deepcut**.
+    - Calculates WER for all tokenizers simultaneously and provides average WER metric.
+    - Uses isolated Python environment for Thai NLP libraries to avoid dependency conflicts.
+    - See [Thai WER Documentation](tools/README_THAI_WER.md) for setup and usage instructions.
+
 ### 🔥🔥2025.08.21: Release of PaddleOCR 3.2.0, includes:
 
 

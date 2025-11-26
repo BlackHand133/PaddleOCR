@@ -1,0 +1,9 @@
+# Requirements for Thai Tokenization Environment
+# This is a separate environment from the main PaddleOCR environment
+# due to compatibility issues
+
+# Thai NLP libraries
+pythainlp
+attacut
+deepcut
+

@@ -32,6 +32,7 @@ from .vqa_token_ser_metric import VQASerTokenMetric
 from .vqa_token_re_metric import VQAReTokenMetric
 from .sr_metric import SRMetric
 from .ct_metric import CTMetric
+from .thai_wer_metric import ThaiWERMetric
 
 
 def build_metric(config):
@@ -51,6 +52,7 @@ def build_metric(config):
         "CNTMetric",
         "CANMetric",
         "LaTeXOCRMetric",
+        "ThaiWERMetric",
     ]
 
     config = copy.deepcopy(config)

@@ -1,0 +1,70 @@
+# Example Configuration for Thai WER Metric
+# This is an example showing how to use ThaiWERMetric for Thai OCR evaluation
+
+Global:
+  use_gpu: true
+  epoch_num: 100
+  log_smooth_window: 20
+  print_batch_step: 10
+  save_model_dir: ./output/th_rec_model
+  save_epoch_step: 10
+  eval_batch_step: 500
+  cal_metric_during_train: True
+  pretrained_model:
+  checkpoints:
+  use_visualdl: False
+  infer_img:
+  character_dict_path: ./ppocr/utils/dict/th_dict.txt
+  max_text_length: 80
+  infer_mode: False
+  use_space_char: True
+  save_res_path: ./output/rec/predicts.txt
+
+# =====================================================
+# Thai WER Metric Configuration
+# =====================================================
+# This metric calculates Word Error Rate using Thai tokenizers:
+# - newmm (PyThaiNLP default)
+# - attacut (PyThaiNLP's attacut)
+# - deepcut (Deepcut tokenizer)
+#
+# You can evaluate all 3 engines simultaneously or select specific ones.
+#
+# Requirements:
+# 1. Create separate environment: python -m venv thai_tokenizer_env
+# 2. Activate it: thai_tokenizer_env\Scripts\activate
+# 3. Install dependencies: pip install -r tools/thai_tokenizer_requirements.txt
+# 4. Update python_path below to point to that environment
+# =====================================================
+
+Metric:
+  name: ThaiWERMetric
+
+  # Main indicator to use for model selection
+  # Options: wer_avg, wer_newmm, wer_attacut, wer_deepcut
+  main_indicator: wer_avg
+
+  # IMPORTANT: Update this path to your thai_tokenizer_env
+  # Windows example:
+  python_path: 'thai_tokenizer_env/Scripts/python'
+  # python_path: 'D:/envs/thai_tokenizer_env/Scripts/python.exe'
+
+  # Linux/Mac example:
+  # python_path: 'thai_tokenizer_env/bin/python'
+  # python_path: '/home/user/envs/thai_tokenizer_env/bin/python'
+
+  # Select which tokenizers to use (default: all three)
+  # You can specify one, two, or all three engines
+  engines: ['newmm', 'attacut', 'deepcut']  # Evaluate all 3 engines
+  # engines: ['newmm']                      # Only newmm
+  # engines: ['newmm', 'attacut']           # Only newmm and attacut
+
+  # Optional: Specify tokenizer script path (auto-detected if not specified)
+  # tokenizer_script: 'tools/thai_tokenizer.py'
+
+  # Enable/disable WER calculation
+  enabled: true
+
+# Note: This example only shows the Metric section
+# You need to add Architecture, Loss, Optimizer, Train, and Eval sections
+# based on your specific model configuration
