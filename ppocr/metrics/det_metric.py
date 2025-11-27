@@ -16,7 +16,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-__all__ = ["DetMetric", "DetFCEMetric"]
+__all__ = ["DetMetric", "DetFCEMetric", "DetMetricAdvanced"]
 
 from .eval_det_iou import DetectionIoUEvaluator
 
@@ -151,3 +151,117 @@ class DetFCEMetric(object):
             0.8: [],
             0.9: [],
         }  # clear results
+
+
+class DetMetricAdvanced(object):
+    """
+    Advanced detection metric with AP/mAP and multi-threshold evaluation.
+
+    Provides:
+    - Standard Precision, Recall, F-measure (hmean) at IoU=0.5
+    - Multi-threshold evaluation at IoU thresholds: [0.5, 0.55, 0.6, ..., 0.95]
+    - mAP (mean Average Precision) across all IoU thresholds
+    - Detailed metrics per threshold for research analysis
+
+    Args:
+        main_indicator (str): Main metric for model selection. Default: 'mAP'
+        iou_thresholds (list): List of IoU thresholds to evaluate.
+                               Default: [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+        iou_constraint (float): IoU threshold for matching. Default: 0.5
+        area_precision_constraint (float): Area precision constraint. Default: 0.5
+
+    Example config:
+        Metric:
+          name: DetMetricAdvanced
+          main_indicator: mAP
+          iou_thresholds: [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+    """
+
+    def __init__(
+        self,
+        main_indicator="mAP",
+        iou_thresholds=None,
+        iou_constraint=0.5,
+        area_precision_constraint=0.5,
+        **kwargs
+    ):
+        if iou_thresholds is None:
+            iou_thresholds = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+
+        self.evaluator = DetectionIoUEvaluator(
+            iou_constraint=iou_constraint,
+            area_precision_constraint=area_precision_constraint,
+            iou_thresholds=iou_thresholds,
+        )
+        self.main_indicator = main_indicator
+        self.iou_thresholds = iou_thresholds
+        self.reset()
+
+    def __call__(self, preds, batch, **kwargs):
+        """
+        Evaluate predictions against ground truth.
+
+        Args:
+            preds: List of predictions with 'points' and optionally 'scores'
+            batch: List containing [image, ratio_list, polygons, ignore_tags]
+        """
+        gt_polyons_batch = batch[2]
+        ignore_tags_batch = batch[3]
+
+        for pred, gt_polyons, ignore_tags in zip(
+            preds, gt_polyons_batch, ignore_tags_batch
+        ):
+            # Prepare ground truth
+            gt_info_list = [
+                {"points": gt_polyon, "text": "", "ignore": ignore_tag}
+                for gt_polyon, ignore_tag in zip(gt_polyons, ignore_tags)
+            ]
+
+            # Prepare detections with scores
+            det_info_list = []
+            for i, det_polyon in enumerate(pred["points"]):
+                det_info = {"points": det_polyon, "text": ""}
+                # Add score if available
+                if "scores" in pred and i < len(pred["scores"]):
+                    det_info["score"] = float(pred["scores"][i])
+                else:
+                    det_info["score"] = 1.0
+                det_info_list.append(det_info)
+
+            # Evaluate at multiple thresholds
+            result = self.evaluator.evaluate_image_multi_threshold(
+                gt_info_list, det_info_list
+            )
+            self.results.append(result)
+
+    def get_metric(self):
+        """
+        Calculate and return final metrics.
+
+        Returns:
+            dict: Metrics including mAP, precision, recall, hmean, and per-threshold results
+        """
+        metrics = self.evaluator.combine_results_multi_threshold(self.results)
+
+        # Format output for better readability
+        output = {
+            "precision": metrics["precision"],
+            "recall": metrics["recall"],
+            "hmean": metrics["hmean"],
+            "mAP": metrics["mAP"],
+        }
+
+        # Add detailed per-threshold metrics
+        for iou_thr, thr_metrics in metrics["threshold_metrics"].items():
+            output[f"IoU@{iou_thr:.2f}"] = (
+                f"P:{thr_metrics['precision']:.4f} "
+                f"R:{thr_metrics['recall']:.4f} "
+                f"F1:{thr_metrics['hmean']:.4f}"
+            )
+
+        self.reset()
+        return output
+
+    def reset(self):
+        """Clear accumulated results."""
+        self.results = []

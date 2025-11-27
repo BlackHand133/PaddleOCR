@@ -21,7 +21,7 @@ import copy
 
 __all__ = ["build_metric"]
 
-from .det_metric import DetMetric, DetFCEMetric
+from .det_metric import DetMetric, DetFCEMetric, DetMetricAdvanced
 from .rec_metric import RecMetric, CNTMetric, CANMetric, LaTeXOCRMetric
 from .cls_metric import ClsMetric
 from .e2e_metric import E2EMetric
@@ -39,6 +39,7 @@ def build_metric(config):
     support_dict = [
         "DetMetric",
         "DetFCEMetric",
+        "DetMetricAdvanced",
         "RecMetric",
         "ClsMetric",
         "E2EMetric",
